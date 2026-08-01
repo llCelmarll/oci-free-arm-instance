@@ -52,7 +52,14 @@ jobs:
           echo "${{ secrets.SSH_PUBLIC_KEY }}" > /home/runner/my_ssh_key.pub
 
           # Run the command, capture ALL output, and use '|| true' to prevent the script from exiting early.
-          OCI_OUTPUT=$(oci compute instance launch \
+                    echo "=== KEY FILE CHECK ==="
+          wc -l ~/.oci/oci_api_key.pem
+          tail -c 100 ~/.oci/oci_api_key.pem
+          echo ""
+          echo "=== LAUNCHING INSTANCE ==="
+
+          set +e
+          oci compute instance launch \
             --compartment-id "$COMPARTMENT_ID" \
             --availability-domain "$AD_NAME" \
             --shape "VM.Standard.A1.Flex" \
@@ -62,14 +69,18 @@ jobs:
             --ssh-authorized-keys-file "/home/runner/my_ssh_key.pub" \
             --assign-public-ip true \
             --display-name "coolify-vm" \
-            --boot-volume-size-in-gbs 200 2>&1 || true)
+            --boot-volume-size-in-gbs 200 > /tmp/oci_out.log 2>&1
+          OCI_EXIT_CODE=$?
+          set -e
 
-          # Store the log as a GitHub step output
+          echo "=== EXIT CODE: $OCI_EXIT_CODE ==="
+          cat /tmp/oci_out.log
+          OCI_OUTPUT=$(cat /tmp/oci_out.log)
+
           echo "log_data<<EOF" >> $GITHUB_OUTPUT
           echo "$OCI_OUTPUT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-          # Check the log content for an error string.
           if echo "$OCI_OUTPUT" | grep -q '"lifecycle-state": "PROVISIONING"'; then
             echo "Success! 'PROVISIONING' state found in output."
             exit 0
@@ -77,6 +88,7 @@ jobs:
             echo "Error: Success string not found in OCI output. Failing the step."
             exit 1
           fi
+
 
       - name: Send Discord Notification
         if: steps.create_vm.outcome == 'success'
