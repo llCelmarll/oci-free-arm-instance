@@ -1,9 +1,6 @@
 name: Try to Create OCI VM
-# It will run every 5 minutes.
+# Triggered externally via cron-job.org, not GitHub's internal schedule (unreliable timing).
 on:
-  schedule:
-    - cron: "*/5 * * * *"
-  # Allows you to manually run this workflow from the Actions tab
   workflow_dispatch:
 env:
   COMPARTMENT_ID: ${{ secrets.OCI_COMPARTMENT_ID }}
